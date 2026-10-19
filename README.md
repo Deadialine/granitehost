@@ -43,7 +43,11 @@ If your website password changes, run the script with `--configure` once.
   Existing saved credentials are reused. Older workers still complete requests
   but cannot provide live progress.
 
-- Saved chat and text-document uploads (TXT, MD, CSV, JSON).
+- Saved chat and document uploads (PDF, TXT, MD, CSV, JSON).
+- Read embedded PDF text with page labels. Choose **Create PDF** beside Send
+  to create a document or rewrite an attached PDF into a new downloadable PDF.
+  Originals are preserved. Scans need OCR first; images, charts, original layout,
+  interactive fields and digital signatures are not reproduced by text rewriting.
 - Discuss or rewrite attached text; download responses as Markdown.
 - Password-protected API, signed HttpOnly sessions, bounded requests, and plain-text
   output rendering. No credentials are included in browser JavaScript.
@@ -52,8 +56,20 @@ If your website password changes, run the script with `--configure` once.
 - Messages and results survive page refreshes and connection failures.
 
 Ollama must already be running with the model installed. This does not reinstall
-or change your existing governed pipeline. PDF/Word editing, EmbeddingGemma
-retrieval, and governed PDF generation are not connected yet.
+or change your existing governed pipeline. PDF production calls the existing
+`~/granite-governed-pipeline/bin/run-document` in WSL (override its location using
+the local `GRANITE_ROOT` environment variable). Word editing and EmbeddingGemma
+retrieval are not connected to the website.
+
+PDF reading requires `pdfinfo`, `pdftotext` (poppler-utils), and `prlimit`
+(util-linux). The existing governed pipeline must already work for PDF writing.
+Its governance refresh, generation, two compilation passes, font audit and
+PDF/UA-2 + WTPDF checks run unchanged. The worker additionally checks the passing
+result, both validation reports and evidence hashes before exposing a download.
+Manual accessibility and visual review are still required. Failed runs remain
+in the pipeline's `runs/` directory for local diagnosis; raw logs stay off the site.
+PDF generation has a 30-minute timeout and uses the pipeline's own model settings
+and context window; large source documents should be split into smaller tasks.
 
 ## Limits
 
@@ -66,6 +82,12 @@ model, but it is not an operating-system sandbox.
 Text documents: three per message, each under 100 KB and 24,000 characters, with
 a combined prompt/attachment limit of 28,000 characters. Model context uses
 bounded recent successful turns; the displayed transcript keeps all messages.
+PDFs: under 2 MB each, at most 80 pages and 60,000 extracted characters each.
+PDF extraction runs with process memory, CPU, file-size and time limits. Requests
+with PDFs are bounded to 90,000 characters for the current message plus a bounded
+history. Oversized extraction is rejected, never silently truncated. Downloads
+are capped at 2 MB and require the signed-in workspace session.
+PDF jobs wait for the updated worker; an old worker cannot process them.
 The first version has a 2,000-record per-prefix limit and no archive/delete UI.
 
 The worker polls every 10 seconds while running. This uses Netlify function and

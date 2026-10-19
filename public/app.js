@@ -64,13 +64,20 @@ function renderJobs() {
   for (const job of state.jobs) {
     area.append(message('user', job.message, job.fileNames));
     if (job.result?.error) { const p = document.createElement('p'); p.className = 'pending'; p.textContent = `This request failed: ${job.result.error}`; area.append(p); }
-    else if (job.result?.text) area.append(message('assistant', job.result.text, [], true));
+    else if (job.result?.text) {
+      const answer = message('assistant', job.result.text, [], true);
+      if (job.result.artifact) {
+        const link = document.createElement('a'); link.className = 'pdf-download'; link.href = `/api/artifacts/${encodeURIComponent(job.id)}`; link.textContent = 'Download PDF'; link.download = 'granite-document.pdf';
+        answer.append(link);
+      }
+      area.append(answer);
+    }
     else {
       const panel = document.createElement('div'); panel.className = 'activity';
       const progress = job.progress;
-      const labels = { received: 'Request received by your computer', waiting: 'Request sent to Ollama - waiting for first output', generating: 'Receiving response from Granite', saving: 'Saving and delivering the response' };
+      const labels = { received: 'Request received by your computer', waiting: 'Request sent to Ollama - waiting for first output', generating: 'Receiving response from Granite', saving: 'Saving and delivering the response', pdf_generating: 'Granite is writing the PDF source', reading_pdf: 'Extracting text from the attached PDF', governance: 'Refreshing document governance', compiling: 'Compiling the PDF', validating: 'Validating PDF accessibility and fonts' };
       const line = document.createElement('div'); line.className = 'activity-status';
-      line.textContent = progress ? labels[progress.stage] : job.status === 'running' ? 'Worker is processing this request. Live output requires the updated connection script.' : state.ready ? 'Queued - waiting for your computer' : 'Queued - waiting for your computer to reconnect';
+      line.textContent = progress ? labels[progress.stage] : job.status === 'running' ? 'Worker is processing this request. Live output requires the updated connection script.' : state.ready ? (job.needsPDF ? 'Queued - waiting for the PDF-enabled worker on your computer' : 'Queued - waiting for your computer') : 'Queued - waiting for your computer to reconnect';
       panel.append(line);
       if (progress) {
         const detail = document.createElement('div'); detail.className = 'activity-detail';
@@ -126,7 +133,7 @@ $('composer').addEventListener('submit', async event => {
       const conversation = await api('/conversations', { title: text.slice(0, 70) });
       state.conversation = conversation.id; $('chat-title').textContent = conversation.title;
     }
-    const request = { id: crypto.randomUUID(), conversationId: state.conversation, message: text, fileIds: state.attachments.map(x => x.id) };
+    const request = { id: crypto.randomUUID(), conversationId: state.conversation, message: text, fileIds: state.attachments.map(x => x.id), output: $('output-mode').value };
     // Reuse the same id on a transport retry: an accepted request isn't enqueued twice.
     let job;
     try { job = await api('/messages', request); }
@@ -142,9 +149,17 @@ $('file-input').addEventListener('change', async event => {
   try {
     for (const file of event.target.files) {
       if (state.attachments.length >= 3) throw new Error('Attach up to three documents per message.');
-      if (file.size > 100_000 || !/\.(txt|md|csv|json)$/i.test(file.name)) throw new Error('Choose TXT, Markdown, CSV, or JSON files under 100 KB.');
-      const content = new TextDecoder('utf-8', { fatal: true }).decode(await file.arrayBuffer());
-      state.attachments.push(await api('/files', { name: file.name, content })); renderAttachments();
+      let payload;
+      if (/\.pdf$/i.test(file.name)) {
+        if (file.size > 2_000_000) throw new Error('Choose a PDF under 2 MB.');
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        let binary = ''; for (let offset = 0; offset < bytes.length; offset += 8192) binary += String.fromCharCode(...bytes.subarray(offset, offset + 8192));
+        payload = { name: file.name, base64: btoa(binary) };
+      } else {
+        if (file.size > 100_000 || !/\.(txt|md|csv|json)$/i.test(file.name)) throw new Error('Choose PDF under 2 MB or TXT, MD, CSV, JSON under 100 KB.');
+        payload = { name: file.name, content: new TextDecoder('utf-8', { fatal: true }).decode(await file.arrayBuffer()) };
+      }
+      state.attachments.push(await api('/files', payload)); renderAttachments();
     }
     notice('Attachments are stored in your Netlify workspace and will be sent to Granite with your message.');
   } catch (error) { notice(error.message, true); }

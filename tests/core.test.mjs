@@ -168,7 +168,7 @@ test('context includes completed turns and pagination preserves every record', a
 });
 test('uploads reject binary/unsupported/oversized text and unsafe file references', async () => {
   const f = fixture(); await f.login();
-  assert.equal((await f.call('/files', { name: 'file.pdf', content: 'x' })).status, 415);
+  assert.equal((await f.call('/files', { name: 'file.pdf', content: 'x' })).status, 400);
   assert.equal((await f.call('/files', { name: 'file.txt', content: '\u0000' })).status, 413);
   assert.equal((await f.call('/files', { name: 'file.txt', content: 'x'.repeat(24_001) })).status, 413);
   const c = await f.conversation();

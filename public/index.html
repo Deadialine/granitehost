@@ -37,10 +37,10 @@
         <form class="composer" id="composer">
           <label class="sr-only" for="prompt">Message Granite</label>
           <textarea id="prompt" rows="2" maxlength="12000" placeholder="Ask a question"></textarea>
-          <div class="composer-toolbar"><div><button type="button" class="attach quiet" id="attach" aria-label="Attach a text document"><span aria-hidden="true">＋</span> Attach</button><span class="file-hint">TXT · MD · CSV · JSON</span></div><button class="send" id="send" aria-label="Send message"><span aria-hidden="true">↑</span></button></div>
+          <div class="composer-toolbar"><div><button type="button" class="attach quiet" id="attach" aria-label="Attach a PDF or text document"><span aria-hidden="true">＋</span> Attach</button><span class="file-hint">PDF / TXT / MD / CSV / JSON</span></div><label class="output-label">Output <select id="output-mode" aria-label="Response format"><option value="chat">Chat</option><option value="pdf">Create PDF</option></select></label><button class="send" id="send" aria-label="Send message"><span aria-hidden="true">↑</span></button></div>
         </form>
       </div>
-      <input type="file" id="file-input" accept=".txt,.md,.csv,.json,text/plain,text/markdown,text/csv,application/json" multiple hidden>
+      <input type="file" id="file-input" accept=".pdf,application/pdf,.txt,.md,.csv,.json,text/plain,text/markdown,text/csv,application/json" multiple hidden>
     </main>
   </div>
   <dialog id="access-dialog" aria-labelledby="access-title">
@@ -58,7 +58,7 @@
   </dialog>
   <dialog id="info-dialog" aria-labelledby="info-title">
     <div class="info-content"><button class="dialog-close quiet" id="close-info" aria-label="Close connection details">×</button><span class="eyebrow">CONNECTION</span><h2 id="info-title">Connect your computer.</h2><p id="info-status"></p><p>Run these commands in Ubuntu/WSL, then enter your workspace password:</p><pre class="connect-command">curl -fsS https://granitehost.netlify.app/connect.py -o "$HOME/granite-connect.py"
-python3 "$HOME/granite-connect.py"</pre><dl><dt>Model</dt><dd>granite4.2:30b · Ollama</dd><dt>Documents</dt><dd>TXT, Markdown, CSV, and JSON. PDF/Word editing and governed PDF generation are not connected yet.</dd><dt>Storage</dt><dd>Conversations and uploads are stored in your Netlify project. Generation runs on your PC.</dd></dl></div>
+python3 "$HOME/granite-connect.py"</pre><dl><dt>Model</dt><dd>granite4.2:30b · Ollama</dd><dt>Documents</dt><dd>TXT, Markdown, CSV, and JSON. PDF text reading and new or rewritten PDFs are supported. Scans need OCR first. Original layouts and images are not preserved when rewriting.</dd><dt>Storage</dt><dd>Conversations and uploads are stored in your Netlify project. Generation runs on your PC.</dd></dl></div>
   </dialog>
 </body>
 </html>
