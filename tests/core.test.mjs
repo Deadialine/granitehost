@@ -3,6 +3,26 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { createHandler } from '../netlify/functions/lib/core.mjs';
 
+test('worker progress is bounded, authenticated, expires, and yields to final results', async () => {
+  const f = fixture(); await f.login();
+  const conversation = await f.conversation();
+  const job = (await f.message(conversation.id)).value;
+  const payload = { ready: true, jobId: job.id, progress: { stage: 'generating', text: '<script>untrusted</script>' + 'a'.repeat(31000), characters: 31025, elapsed: 12 } };
+  assert.equal((await f.call('/worker/heartbeat', payload, { authenticated: false })).status, 401);
+  assert.equal((await f.call('/worker/heartbeat', payload, { worker: true })).status, 200);
+  const current = async () => (await f.call(`/conversations/${conversation.id}`)).value.jobs[0];
+  assert.equal((await current()).status, 'running');
+  assert.equal((await current()).progress.text.length, 30000);
+  assert.equal((await current()).progress.elapsed, 12);
+  f.advance(91000);
+  assert.equal((await current()).progress, null);
+  await f.call('/worker/heartbeat', payload, { worker: true });
+  await f.call('/worker/result', { id: job.id, text: 'Final answer' }, { worker: true });
+  assert.equal((await current()).status, 'completed');
+  assert.equal((await current()).result.text, 'Final answer');
+  assert.equal((await current()).progress, undefined);
+});
+
 const ORIGIN = 'https://granite-test.netlify.app';
 const env = { SITE_PASSWORD: 'a-long-test-password-for-testing-only' };
 class MemoryStore {

@@ -65,7 +65,23 @@ function renderJobs() {
     area.append(message('user', job.message, job.fileNames));
     if (job.result?.error) { const p = document.createElement('p'); p.className = 'pending'; p.textContent = `This request failed: ${job.result.error}`; area.append(p); }
     else if (job.result?.text) area.append(message('assistant', job.result.text, [], true));
-    else { const p = document.createElement('p'); p.className = 'pending'; p.textContent = job.status === 'running' ? 'Granite is working…' : state.ready ? 'Request saved. Waiting for your computer to collect it…' : 'Request saved. It will run when your computer reconnects.'; area.append(p); }
+    else {
+      const panel = document.createElement('div'); panel.className = 'activity';
+      const progress = job.progress;
+      const labels = { received: 'Request received by your computer', waiting: 'Request sent to Ollama - waiting for first output', generating: 'Receiving response from Granite', saving: 'Saving and delivering the response' };
+      const line = document.createElement('div'); line.className = 'activity-status';
+      line.textContent = progress ? labels[progress.stage] : job.status === 'running' ? 'Worker is processing this request. Live output requires the updated connection script.' : state.ready ? 'Queued - waiting for your computer' : 'Queued - waiting for your computer to reconnect';
+      panel.append(line);
+      if (progress) {
+        const detail = document.createElement('div'); detail.className = 'activity-detail';
+        detail.textContent = `${Math.floor(progress.elapsed)}s elapsed | ${progress.characters.toLocaleString()} characters received`;
+        if (progress.characters > 30000) detail.textContent += ' | Preview shows the first 30,000 characters; full answer follows on completion';
+        panel.append(detail);
+        if (Date.now() - progress.updatedAt > 15000) { const stale = document.createElement('div'); stale.textContent = 'Waiting for a fresh worker update...'; panel.append(stale); }
+      }
+      area.append(panel);
+      if (progress?.text) area.append(message('assistant', progress.text));
+    }
   }
 }
 async function openConversation(id) {
@@ -139,7 +155,6 @@ $('logout').addEventListener('click', async () => { try { await api('/logout', {
 $('connection-info').addEventListener('click', () => $('info-dialog').showModal());
 $('close-info').addEventListener('click', () => $('info-dialog').close());
 $('menu').addEventListener('click', () => { const open = $('sidebar').classList.toggle('open'); $('menu').setAttribute('aria-expanded', String(open)); });
-document.querySelectorAll('[data-prompt]').forEach(button => button.addEventListener('click', () => { $('prompt').value = button.dataset.prompt; $('prompt').focus(); }));
 async function refresh() {
   if (document.hidden) return;
   try {
@@ -151,5 +166,6 @@ async function refresh() {
   } catch (error) { state.online = false; state.ready = false; setConnection(); notice(error.message, true); }
 }
 checkSession().then(loadList).catch(error => notice(error.message, true));
-setInterval(refresh, 10_000);
+async function pollView() { await refresh(); setTimeout(pollView, state.busy ? 3000 : 10000); }
+setTimeout(pollView, 3000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });

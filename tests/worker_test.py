@@ -15,6 +15,26 @@ spec.loader.exec_module(worker)
 
 
 class WorkerTests(unittest.TestCase):
+    def test_streaming_reports_real_output_and_requires_completion(self):
+        events = [
+            {'message': {'content': 'Hello '}},
+            {'message': {'content': 'world'}},
+            {'done': True, 'message': {'content': ''}},
+        ]
+        raw = b''.join(json.dumps(event).encode() + b'\n' for event in events)
+        updates = []
+        with patch.object(worker.urllib.request, 'build_opener') as opener:
+            opener.return_value.open.return_value = io.BytesIO(raw)
+            result = worker.generate({'messages': [{'role': 'user', 'content': 'Hi'}]}, lambda stage, text: updates.append((stage, text)))
+            request = opener.return_value.open.call_args.args[0]
+            self.assertTrue(json.loads(request.data)['stream'])
+        self.assertEqual(result, 'Hello world')
+        self.assertEqual(updates, [('waiting', ''), ('generating', 'Hello '), ('generating', 'Hello world')])
+        with patch.object(worker.urllib.request, 'build_opener') as opener:
+            opener.return_value.open.return_value = io.BytesIO(json.dumps(events[0]).encode() + b'\n')
+            with self.assertRaisesRegex(ValueError, 'before completion'):
+                worker.generate({'messages': [{'role': 'user', 'content': 'Hi'}]}, lambda *args: None)
+
     def test_first_connection_uses_only_the_website_password(self):
         with tempfile.TemporaryDirectory() as directory:
             config = Path(directory) / 'worker.json'

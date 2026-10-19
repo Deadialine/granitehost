@@ -29,24 +29,16 @@
       <header class="topbar"><button class="mobile-menu quiet" id="menu" aria-label="Toggle conversations" aria-expanded="false">☰</button><div><span class="breadcrumb">Workspace</span><span class="slash">/</span><span id="chat-title">New conversation</span></div><span class="private-badge"><span aria-hidden="true">◈</span> Password protected</span></header>
       <div class="notice" id="notice" role="status" hidden></div>
       <section class="welcome" id="welcome">
-        <div class="eyebrow"><span class="small-line"></span> YOUR IDEAS. YOUR GRANITE.</div>
-        <h1>What are we<br>working on?</h1>
-        <p class="intro">A little space to think, write, and work through your documents.</p>
-        <div class="suggestions">
-          <button class="suggestion" data-prompt="Summarize the attached document. Identify its main points and any unanswered questions."><span class="card-icon" aria-hidden="true">≡</span><strong>Find the main points</strong><span>Make sense of a document</span><span class="card-arrow" aria-hidden="true">↗</span></button>
-          <button class="suggestion" data-prompt="Help me rewrite the following text for clarity while keeping its meaning and my voice: "><span class="card-icon" aria-hidden="true">✎</span><strong>Make it clearer</strong><span>Refine something you’re writing</span><span class="card-arrow" aria-hidden="true">↗</span></button>
-          <button class="suggestion" data-prompt="Help me understand this concept step by step, using a concrete example: "><span class="card-icon" aria-hidden="true">⌘</span><strong>Work through an idea</strong><span>Get a useful explanation</span><span class="card-arrow" aria-hidden="true">↗</span></button>
-        </div>
+        <h1>Ask a question</h1>
       </section>
       <section class="messages" id="messages" aria-label="Conversation" aria-live="polite" aria-relevant="additions"></section>
       <div class="composer-wrap">
         <div id="attachments" class="attachments" aria-label="Attached documents"></div>
         <form class="composer" id="composer">
           <label class="sr-only" for="prompt">Message Granite</label>
-          <textarea id="prompt" rows="2" maxlength="12000" placeholder="Ask a question, share an idea, or attach a document…"></textarea>
+          <textarea id="prompt" rows="2" maxlength="12000" placeholder="Ask a question"></textarea>
           <div class="composer-toolbar"><div><button type="button" class="attach quiet" id="attach" aria-label="Attach a text document"><span aria-hidden="true">＋</span> Attach</button><span class="file-hint">TXT · MD · CSV · JSON</span></div><button class="send" id="send" aria-label="Send message"><span aria-hidden="true">↑</span></button></div>
         </form>
-        <p class="composer-note">Granite can make mistakes. Review important details. <span>Shift + Enter for a new line</span></p>
       </div>
       <input type="file" id="file-input" accept=".txt,.md,.csv,.json,text/plain,text/markdown,text/csv,application/json" multiple hidden>
     </main>

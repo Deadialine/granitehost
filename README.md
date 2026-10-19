@@ -33,6 +33,16 @@ If your website password changes, run the script with `--configure` once.
 
 ## Current capabilities
 
+- Live response preview and factual worker status, elapsed time, and received
+  character count. Active requests refresh about every three seconds; network
+  and storage latency can add delay. This is output streaming, not internal
+  reasoning or an operating-system terminal. The live preview is capped at
+  30,000 characters; the full response is delivered on completion.
+- After deploying this update, wait for any current request to finish, stop the
+  old worker with Ctrl+C, and rerun the two download/start commands above.
+  Existing saved credentials are reused. Older workers still complete requests
+  but cannot provide live progress.
+
 - Saved chat and text-document uploads (TXT, MD, CSV, JSON).
 - Discuss or rewrite attached text; download responses as Markdown.
 - Password-protected API, signed HttpOnly sessions, bounded requests, and plain-text

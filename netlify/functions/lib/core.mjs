@@ -85,7 +85,7 @@ export function createHandler({ store, env, now = () => Date.now() }) {
     const result = await get(`results/${job.id}`);
     if (result) return { ...job, status: result.error ? 'failed' : 'completed', result };
     const h = await heartbeat();
-    return { ...job, status: h?.jobId === job.id ? 'running' : 'queued', result: null };
+    return { ...job, status: h?.jobId === job.id ? 'running' : 'queued', progress: h?.jobId === job.id ? h.progress || null : null, result: null };
   }
   async function chatMessages(job) {
     const previous = (await requests(job.conversationId)).filter(x => x.createdAt < job.createdAt || (x.createdAt === job.createdAt && x.id < job.id)).slice(-6);
@@ -190,7 +190,16 @@ export function createHandler({ store, env, now = () => Date.now() }) {
       }
       if (path === '/worker/heartbeat') {
         const input = await body(request);
-        await store.setJSON('worker/heartbeat', { time: now(), ready: input.ready === true, jobId: validID(input.jobId) ? input.jobId : null });
+        const stages = ['received', 'waiting', 'generating', 'saving'];
+        const p = input.progress;
+        const progress = p && stages.includes(p.stage) ? {
+          stage: p.stage,
+          text: typeof p.text === 'string' ? p.text.slice(0, 30000) : '',
+          characters: Number.isSafeInteger(p.characters) && p.characters >= 0 ? Math.min(p.characters, 150000) : 0,
+          elapsed: Number.isFinite(p.elapsed) && p.elapsed >= 0 ? Math.min(p.elapsed, 86400) : 0,
+          updatedAt: now(),
+        } : null;
+        await store.setJSON('worker/heartbeat', { time: now(), ready: input.ready === true, jobId: validID(input.jobId) ? input.jobId : null, progress });
         return response({ ok: true });
       }
       if (path === '/worker/poll') {

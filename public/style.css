@@ -5,3 +5,10 @@
 @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 
 .connect-command{font:10px/1.8 monospace;background:#eef2f9;border:1px solid #dce3ef;border-radius:7px;padding:12px;white-space:pre-wrap;overflow-wrap:anywhere}
+
+/* Minimal empty state and factual worker activity. */
+.welcome { padding-top: clamp(40px, 10vh, 100px); }
+.welcome h1 { font-size: clamp(32px, 4vw, 48px); }
+.activity { margin: 12px 0 24px; padding: 16px 20px; border: 1px solid #d9dfdf; border-radius: 12px; background: #f4f6f5; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+.activity-status::before { content: '> '; color: #44786c; }
+.activity-detail { color: #58666b; font-size: 12px; }

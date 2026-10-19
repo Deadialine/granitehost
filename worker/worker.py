@@ -78,7 +78,7 @@ def model_ready():
     return any(item.get('name') == MODEL or item.get('model') == MODEL for item in tags.get('models', []))
 
 
-def generate(job):
+def generate(job, progress=None):
     messages = job.get('messages')
     if not isinstance(messages, list) or not messages or len(messages) > 15:
         raise ValueError('Invalid chat request.')
@@ -88,13 +88,45 @@ def generate(job):
     if sum(len(m['content']) for m in messages) > 100_000:
         raise ValueError('Chat context limit exceeded.')
     # No tools, shell execution, arbitrary filenames, URLs, or model selection from requests.
-    result = request_json(OLLAMA + '/api/chat', {
+    payload = {
         'model': MODEL,
         'messages': [{'role': 'system', 'content': SYSTEM}] + messages,
-        'stream': False,
+        'stream': progress is not None,
         'options': {'num_ctx': 32768, 'num_predict': 4096},
-    }, timeout=1200)
-    content = result.get('message', {}).get('content')
+    }
+    if progress is None:
+        result = request_json(OLLAMA + '/api/chat', payload, timeout=1200)
+        content = result.get('message', {}).get('content')
+    else:
+        progress('waiting', '')
+        request = urllib.request.Request(OLLAMA + '/api/chat', data=json.dumps(payload).encode(), headers={'Content-Type': 'application/json'})
+        content = ''
+        done = False
+        total = 0
+        with urllib.request.build_opener(NoRedirect()).open(request, timeout=1200) as response:
+            while True:
+                line = response.readline(2_000_001)
+                if not line:
+                    break
+                total += len(line)
+                if len(line) > 2_000_000 or total > 8_000_000:
+                    raise ValueError('Response size limit exceeded.')
+                event = json.loads(line)
+                if event.get('error'):
+                    raise ValueError('Ollama generation failed.')
+                piece = event.get('message', {}).get('content', '')
+                if not isinstance(piece, str):
+                    raise ValueError('Invalid streamed response.')
+                if piece:
+                    content += piece
+                    if len(content) > 150_000:
+                        raise ValueError('Response size limit exceeded.')
+                    progress('generating', content)
+                if event.get('done'):
+                    done = True
+                    break
+        if not done:
+            raise ValueError('Ollama stream ended before completion.')
     if not isinstance(content, str) or not content.strip():
         raise ValueError('Granite returned an empty response.')
     return content[:150_000]
@@ -127,15 +159,26 @@ def run(path, poll_seconds):
         raise ValueError('A worker is already running for this configuration.') from None
     outbox = path.parent / 'outbox.json'
     stop = threading.Event()
-    current = {'jobId': None, 'ready': False}
+    current = {'jobId': None, 'ready': False, 'progress': None}
+    started = 0.0
 
     def send(endpoint, data):
         return request_json(site + '/api/worker/' + endpoint, data, token)
 
+    def report(stage, text):
+        current['progress'] = {'stage': stage, 'text': text[:30000], 'characters': len(text), 'elapsed': time.monotonic() - started}
+
     def heartbeat():
-        while not stop.wait(20):
+        last_sent = 0.0
+        while not stop.wait(3):
+            if not current['jobId'] and time.monotonic() - last_sent < 20:
+                continue
             try:
-                send('heartbeat', dict(current))
+                snapshot = dict(current)
+                if snapshot.get('progress'):
+                    snapshot['progress'] = {**snapshot['progress'], 'elapsed': time.monotonic() - started}
+                send('heartbeat', snapshot)
+                last_sent = time.monotonic()
             except (OSError, ValueError, urllib.error.URLError):
                 pass
 
@@ -152,6 +195,7 @@ def run(path, poll_seconds):
                     send('result', json.loads(outbox.read_text()))
                     outbox.unlink()
                     current['jobId'] = None
+                    current['progress'] = None
                     print('Result delivered.')
                 try:
                     current['ready'] = model_ready()
@@ -163,12 +207,15 @@ def run(path, poll_seconds):
                 job = send('poll', {'ready': current['ready']}).get('job')
                 if job:
                     current['jobId'] = job['id']
+                    started = time.monotonic()
+                    report('received', '')
                     send('heartbeat', dict(current))
                     print('Processing a queued conversation.')
                     try:
-                        result = {'id': job['id'], 'text': generate(job)}
+                        result = {'id': job['id'], 'text': generate(job, report)}
                     except (OSError, ValueError, urllib.error.URLError):
                         result = {'id': job['id'], 'text': '', 'error': 'Local generation failed. Check Ollama is running and retry your message.'}
+                    report('saving', result['text'])
                     private_write(outbox, result)
                     continue
             except urllib.error.HTTPError as error:
