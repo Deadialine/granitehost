@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="description" content="A private workspace for conversations and documents with your Granite installation.">
+  <meta name="theme-color" content="#131c2e">
+  <title>Granite Workspace</title>
+  <link rel="icon" href="/mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="/" aria-label="Granite Workspace home"><img src="/mark.svg" alt="" width="34" height="38"><span>Granite<span class="brand-sub">WORKSPACE</span></span></a>
+      <button class="new-chat" id="new-chat"><span aria-hidden="true">＋</span> New conversation</button>
+      <div class="sidebar-label">YOUR CONVERSATIONS</div>
+      <nav id="conversations" aria-label="Saved conversations"><p class="sidebar-empty">Your conversations will appear here.</p></nav>
+      <div class="sidebar-bottom">
+        <div class="engine"><span class="dot" id="engine-dot"></span><div><strong id="engine-status">Checking connection</strong><small>Granite · 30B</small></div></div>
+        <button class="quiet sidebar-action" id="connection-info">Connection details <span aria-hidden="true">↗</span></button>
+        <button class="quiet sidebar-action" id="logout" hidden>Sign out</button>
+        <span class="version">SMF RESEARCH · WORKSPACE 0.2</span>
+      </div>
+    </aside>
+    <main>
+      <header class="topbar"><button class="mobile-menu quiet" id="menu" aria-label="Toggle conversations" aria-expanded="false">☰</button><div><span class="breadcrumb">Workspace</span><span class="slash">/</span><span id="chat-title">New conversation</span></div><span class="private-badge"><span aria-hidden="true">◈</span> Password protected</span></header>
+      <div class="notice" id="notice" role="status" hidden></div>
+      <section class="welcome" id="welcome">
+        <div class="eyebrow"><span class="small-line"></span> YOUR IDEAS. YOUR GRANITE.</div>
+        <h1>What are we<br>working on?</h1>
+        <p class="intro">A little space to think, write, and work through your documents.</p>
+        <div class="suggestions">
+          <button class="suggestion" data-prompt="Summarize the attached document. Identify its main points and any unanswered questions."><span class="card-icon" aria-hidden="true">≡</span><strong>Find the main points</strong><span>Make sense of a document</span><span class="card-arrow" aria-hidden="true">↗</span></button>
+          <button class="suggestion" data-prompt="Help me rewrite the following text for clarity while keeping its meaning and my voice: "><span class="card-icon" aria-hidden="true">✎</span><strong>Make it clearer</strong><span>Refine something you’re writing</span><span class="card-arrow" aria-hidden="true">↗</span></button>
+          <button class="suggestion" data-prompt="Help me understand this concept step by step, using a concrete example: "><span class="card-icon" aria-hidden="true">⌘</span><strong>Work through an idea</strong><span>Get a useful explanation</span><span class="card-arrow" aria-hidden="true">↗</span></button>
+        </div>
+      </section>
+      <section class="messages" id="messages" aria-label="Conversation" aria-live="polite" aria-relevant="additions"></section>
+      <div class="composer-wrap">
+        <div id="attachments" class="attachments" aria-label="Attached documents"></div>
+        <form class="composer" id="composer">
+          <label class="sr-only" for="prompt">Message Granite</label>
+          <textarea id="prompt" rows="2" maxlength="12000" placeholder="Ask a question, share an idea, or attach a document…"></textarea>
+          <div class="composer-toolbar"><div><button type="button" class="attach quiet" id="attach" aria-label="Attach a text document"><span aria-hidden="true">＋</span> Attach</button><span class="file-hint">TXT · MD · CSV · JSON</span></div><button class="send" id="send" aria-label="Send message"><span aria-hidden="true">↑</span></button></div>
+        </form>
+        <p class="composer-note">Granite can make mistakes. Review important details. <span>Shift + Enter for a new line</span></p>
+      </div>
+      <input type="file" id="file-input" accept=".txt,.md,.csv,.json,text/plain,text/markdown,text/csv,application/json" multiple hidden>
+    </main>
+  </div>
+  <dialog id="access-dialog" aria-labelledby="access-title">
+    <form id="access-form">
+      <img src="/mark.svg" alt="" width="36" height="40">
+      <span class="eyebrow">YOUR PRIVATE WORKSPACE</span>
+      <h2 id="access-title">Welcome to Granite.</h2>
+      <p id="access-description">Enter your workspace password to open your conversations.</p>
+      <label for="password">Workspace password</label>
+      <input type="password" id="password" autocomplete="current-password" required>
+      <p id="access-error" class="form-error" role="alert"></p>
+      <button class="primary" id="access-submit">Open workspace <span aria-hidden="true">→</span></button>
+      <p class="dialog-note">Your workspace password is separate from your Netlify login.</p>
+    </form>
+  </dialog>
+  <dialog id="info-dialog" aria-labelledby="info-title">
+    <div class="info-content"><button class="dialog-close quiet" id="close-info" aria-label="Close connection details">×</button><span class="eyebrow">CONNECTION</span><h2 id="info-title">Connect your computer.</h2><p id="info-status"></p><p>Run these commands in Ubuntu/WSL, then enter your workspace password:</p><pre class="connect-command">curl -fsS https://granitehost.netlify.app/connect.py -o "$HOME/granite-connect.py"
+python3 "$HOME/granite-connect.py"</pre><dl><dt>Model</dt><dd>granite4.2:30b · Ollama</dd><dt>Documents</dt><dd>TXT, Markdown, CSV, and JSON. PDF/Word editing and governed PDF generation are not connected yet.</dd><dt>Storage</dt><dd>Conversations and uploads are stored in your Netlify project. Generation runs on your PC.</dd></dl></div>
+  </dialog>
+</body>
+</html>
