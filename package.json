@@ -1,0 +1,12 @@
+{
+  "name": "granite-workspace",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build": "node scripts/check.mjs",
+    "test": "node --test tests/*.test.mjs && python3 -m unittest discover -s tests -p '*_test.py'"
+  },
+  "dependencies": { "@netlify/blobs": "^10.0.0" }
+}

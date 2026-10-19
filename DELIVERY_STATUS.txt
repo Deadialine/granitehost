@@ -1,0 +1,18 @@
+Granite Workspace 0.2 — simplified connection
+
+Prepared and validated: 17 Node tests, 8 Python tests, and build checks passed.
+One Netlify setting is required: SITE_PASSWORD (16 or more characters).
+WORKER_TOKEN and SESSION_SECRET are obsolete in this version.
+The downloadable connect.py asks for the same website password on first run.
+
+The simplified application was published at https://granitehost.netlify.app/.
+Production deploy: 6ad5aba10c1f022095f5fd03. Code checks, function bundling, and
+secret scanning passed. The deployment contains the API function and connect.py.
+Live /api/session verification reports configured=false because the saved
+SITE_PASSWORD contains fewer than 16 characters. A password of at least 16
+characters must be saved for Production and the site redeployed before login.
+The obsolete WORKER_TOKEN and SESSION_SECRET variables have been removed.
+SITE_PASSWORD now has a value only for Production; preview contexts are empty.
+
+A real connection to the user's PC has not yet been tested. Existing Ollama and
+governed pipeline files on the user's computer have not been accessed or changed.
