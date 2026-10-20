@@ -56,6 +56,28 @@ function message(role, text, files = [], exportable = false) {
   if (exportable) { const actions = document.createElement('div'); actions.className = 'message-actions'; const button = document.createElement('button'); button.className = 'quiet'; button.textContent = 'Download as Markdown ↓'; button.addEventListener('click', () => download(text)); actions.append(button); article.append(actions); }
   return article;
 }
+const thinkingViews = new Map();
+function thinkingPanel(job) {
+  const text = job.result?.thinking || job.progress?.thinking;
+  if (!text) return null;
+  const live = !['completed', 'failed'].includes(job.status);
+  const details = document.createElement('details'); details.className = 'thinking-panel';
+  const remembered = thinkingViews.get(job.id);
+  details.open = remembered?.open ?? live;
+  details.addEventListener('toggle', () => {
+    if (details.isConnected) thinkingViews.set(job.id, { ...thinkingViews.get(job.id), open: details.open });
+  });
+  const heading = document.createElement('summary');
+  heading.textContent = job.progress?.stage === 'thinking' && live ? 'Thinking...' : 'Thinking';
+  const body = document.createElement('pre'); body.className = 'thinking-body'; body.textContent = text;
+  const hint = document.createElement('p'); hint.className = 'thinking-hint';
+  const clipped = live ? job.progress.thinkingCharacters > text.length : job.result.thinkingTruncated;
+  hint.textContent = clipped ? 'Model reasoning preview reached its display limit.' : 'Reasoning emitted by Granite';
+  body.addEventListener('scroll', () => thinkingViews.set(job.id, { ...thinkingViews.get(job.id), scroll: body.scrollTop, follow: body.scrollHeight - body.clientHeight - body.scrollTop < 32 }));
+  details.append(heading, hint, body);
+  requestAnimationFrame(() => { if (details.isConnected) body.scrollTop = remembered?.follow === false ? remembered.scroll : body.scrollHeight; });
+  return details;
+}
 function renderJobs() {
   const area = $('messages'); area.replaceChildren();
   $('welcome').hidden = state.jobs.length > 0;
@@ -63,6 +85,7 @@ function renderJobs() {
   $('send').disabled = state.busy;
   for (const job of state.jobs) {
     area.append(message('user', job.message, job.fileNames));
+    const thoughts = thinkingPanel(job); if (thoughts) area.append(thoughts);
     if (job.result?.error) { const p = document.createElement('p'); p.className = 'pending'; p.textContent = `This request failed: ${job.result.error}`; area.append(p); }
     else if (job.result?.text) {
       const answer = message('assistant', job.result.text, [], true);
@@ -75,13 +98,14 @@ function renderJobs() {
     else {
       const panel = document.createElement('div'); panel.className = 'activity';
       const progress = job.progress;
-      const labels = { received: 'Request received by your computer', waiting: 'Request sent to Ollama - waiting for first output', generating: 'Receiving response from Granite', saving: 'Saving and delivering the response', pdf_generating: 'Granite is writing the PDF source', reading_pdf: 'Extracting text from the attached PDF', governance: 'Refreshing document governance', compiling: 'Compiling the PDF', validating: 'Validating PDF accessibility and fonts' };
+      const labels = { received: 'Request received by your computer', waiting: 'Request sent to Ollama - waiting for first output', thinking: 'Granite is thinking', generating: 'Receiving response from Granite', saving: 'Saving and delivering the response', pdf_generating: 'Granite is writing the PDF source', reading_pdf: 'Extracting text from the attached PDF', governance: 'Refreshing document governance', compiling: 'Compiling the PDF', validating: 'Validating PDF accessibility and fonts' };
       const line = document.createElement('div'); line.className = 'activity-status';
       line.textContent = progress ? labels[progress.stage] : job.status === 'running' ? 'Worker is processing this request. Live output requires the updated connection script.' : state.ready ? (job.needsPDF ? 'Queued - waiting for the PDF-enabled worker on your computer' : 'Queued - waiting for your computer') : 'Queued - waiting for your computer to reconnect';
       panel.append(line);
       if (progress) {
         const detail = document.createElement('div'); detail.className = 'activity-detail';
-        detail.textContent = `${Math.floor(progress.elapsed)}s elapsed | ${progress.characters.toLocaleString()} characters received`;
+        detail.textContent = `${Math.floor(progress.elapsed)}s elapsed | ${progress.characters.toLocaleString()} answer characters`;
+        if (progress.thinkingCharacters) detail.textContent += ` | ${progress.thinkingCharacters.toLocaleString()} thinking characters`;
         if (progress.characters > 30000) detail.textContent += ' | Preview shows the first 30,000 characters; full answer follows on completion';
         panel.append(detail);
         if (Date.now() - progress.updatedAt > 15000) { const stale = document.createElement('div'); stale.textContent = 'Waiting for a fresh worker update...'; panel.append(stale); }
@@ -109,6 +133,7 @@ function renderAttachments() {
   }
 }
 function clearView() {
+  thinkingViews.clear();
   state.conversation = null; state.jobs = []; state.attachments = []; state.busy = false;
   $('chat-title').textContent = 'New conversation'; $('messages').replaceChildren(); $('welcome').hidden = false; $('send').disabled = false;
   renderAttachments();

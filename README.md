@@ -35,9 +35,18 @@ If your website password changes, run the script with `--configure` once.
 
 - Live response preview and factual worker status, elapsed time, and received
   character count. Active requests refresh about every three seconds; network
-  and storage latency can add delay. This is output streaming, not internal
-  reasoning or an operating-system terminal. The live preview is capped at
+  and storage latency can add delay. This is output streaming, not an
+  operating-system terminal. The live answer preview is capped at
   30,000 characters; the full response is delivered on completion.
+- Chat requests enable Ollama thinking and show its actual `message.thinking`
+  stream in an expandable Thinking panel, separate from the answer. The live
+  trace displays up to 30,000 characters; up to 60,000 are saved with the result
+  (including failed requests), with an explicit notice if clipped. Saved
+  thinking is not fed back into subsequent chat context. No trace is invented
+  if the model emits none. Thinking uses the same three-second polling cadence.
+  The chat generation budget is 8,192 tokens including reasoning and the answer.
+  PDF generation still uses the existing pipeline, which disables thinking and
+  exposes production stages only.
 - After deploying this update, wait for any current request to finish, stop the
   old worker with Ctrl+C, and rerun the two download/start commands above.
   Existing saved credentials are reused. Older workers still complete requests

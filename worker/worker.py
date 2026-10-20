@@ -71,7 +71,7 @@ def request_json(url, data=None, token=None, timeout=30):
         headers['Authorization'] = 'Bearer ' + token
     payload = None
     if data is not None:
-        payload = json.dumps(data).encode()
+        payload = json.dumps(data, ensure_ascii=False).encode('utf-8')
         headers['Content-Type'] = 'application/json'
     request = urllib.request.Request(url, data=payload, headers=headers)
     with urllib.request.build_opener(NoRedirect()).open(request, timeout=timeout) as result:
@@ -100,7 +100,8 @@ def generate(job, progress=None):
         'model': MODEL,
         'messages': [{'role': 'system', 'content': SYSTEM}] + messages,
         'stream': progress is not None,
-        'options': {'num_ctx': 32768, 'num_predict': 4096},
+        'think': True,
+        'options': {'num_ctx': 32768, 'num_predict': 8192},
     }
     if progress is None:
         result = request_json(OLLAMA + '/api/chat', payload, timeout=1200)
@@ -109,6 +110,7 @@ def generate(job, progress=None):
         progress('waiting', '')
         request = urllib.request.Request(OLLAMA + '/api/chat', data=json.dumps(payload).encode(), headers={'Content-Type': 'application/json'})
         content = ''
+        thinking = ''
         done = False
         total = 0
         with urllib.request.build_opener(NoRedirect()).open(request, timeout=1200) as response:
@@ -122,6 +124,14 @@ def generate(job, progress=None):
                 event = json.loads(line)
                 if event.get('error'):
                     raise ValueError('Ollama generation failed.')
+                thought = event.get('message', {}).get('thinking', '')
+                if not isinstance(thought, str):
+                    raise ValueError('Invalid thinking stream.')
+                if thought:
+                    thinking += thought
+                    if len(thinking) > 150_000:
+                        raise ValueError('Thinking size limit exceeded.')
+                    progress('thinking', content, thinking)
                 piece = event.get('message', {}).get('content', '')
                 if not isinstance(piece, str):
                     raise ValueError('Invalid streamed response.')
@@ -129,7 +139,10 @@ def generate(job, progress=None):
                     content += piece
                     if len(content) > 150_000:
                         raise ValueError('Response size limit exceeded.')
-                    progress('generating', content)
+                    if thinking:
+                        progress('generating', content, thinking)
+                    else:
+                        progress('generating', content)
                 if event.get('done'):
                     done = True
                     break
@@ -321,8 +334,14 @@ def run(path, poll_seconds):
     def send(endpoint, data):
         return request_json(site + '/api/worker/' + endpoint, data, token)
 
-    def report(stage, text):
-        current['progress'] = {'stage': stage, 'text': text[:30000], 'characters': len(text), 'elapsed': time.monotonic() - started}
+    trace = {'text': ''}
+
+    def report(stage, text, thinking=None):
+        if stage == 'received':
+            trace['text'] = ''
+        if thinking is not None:
+            trace['text'] = thinking
+        current['progress'] = {'stage': stage, 'text': text[:30000], 'thinking': trace['text'][:30000], 'thinkingCharacters': len(trace['text']), 'characters': len(text), 'elapsed': time.monotonic() - started}
 
     def heartbeat():
         last_sent = 0.0
@@ -377,6 +396,9 @@ def run(path, poll_seconds):
                         result = {'id': job['id'], 'text': '', 'error': str(error)}
                     except (OSError, ValueError, urllib.error.URLError):
                         result = {'id': job['id'], 'text': '', 'error': 'Local generation failed. Check Ollama is running and retry your message.'}
+                    if trace['text']:
+                        result['thinking'] = trace['text'][:60000]
+                        result['thinkingTruncated'] = len(trace['text']) > 60000
                     report('saving', result['text'])
                     private_write(outbox, result)
                     continue

@@ -15,6 +15,23 @@ spec.loader.exec_module(worker)
 
 
 class WorkerTests(unittest.TestCase):
+    def test_thinking_stream_is_separate_from_answer(self):
+        events = [
+            {'message': {'thinking': 'First thought. ', 'content': ''}},
+            {'message': {'thinking': 'Second thought.', 'content': 'Answer'}},
+            {'message': {'content': ' continues.'}, 'done': True},
+        ]
+        updates = []
+        raw = b''.join(json.dumps(event).encode() + b'\n' for event in events)
+        with patch.object(worker.urllib.request, 'build_opener') as opener:
+            opener.return_value.open.return_value = io.BytesIO(raw)
+            answer = worker.generate({'messages': [{'role': 'user', 'content': 'Test'}]}, lambda *args: updates.append(args))
+            self.assertIs(json.loads(opener.return_value.open.call_args.args[0].data)['think'], True)
+        self.assertEqual(answer, 'Answer continues.')
+        self.assertEqual(updates[1], ('thinking', '', 'First thought. '))
+        self.assertEqual(updates[-1], ('generating', 'Answer continues.', 'First thought. Second thought.'))
+        self.assertNotIn('thought', answer)
+
     def test_pdf_extraction_labels_pages_and_rejects_scans(self):
         import base64
         from types import SimpleNamespace

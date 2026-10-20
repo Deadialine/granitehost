@@ -3,6 +3,26 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { createHandler } from '../netlify/functions/lib/core.mjs';
 
+test('thinking streams are bounded, saved and excluded from later chat context', async () => {
+  const f = fixture(); await f.login();
+  const conversation = await f.conversation();
+  const job = (await f.message(conversation.id)).value;
+  await f.call('/worker/heartbeat', { ready:true, jobId:job.id, progress:{stage:'thinking',text:'',thinking:'x'.repeat(31000),thinkingCharacters:31000,elapsed:2} }, {worker:true});
+  let jobs = (await f.call(`/conversations/${conversation.id}`)).value.jobs;
+  assert.equal(jobs[0].progress.stage, 'thinking');
+  assert.equal(jobs[0].progress.thinking.length, 30000);
+  assert.equal(jobs[0].progress.thinkingCharacters, 31000);
+  assert.equal((await f.call(`/conversations/${conversation.id}`,undefined,{authenticated:false})).status,401);
+  await f.call('/worker/result', {id:job.id,text:'The answer',thinking:'private-reasoning-marker'}, {worker:true});
+  jobs = (await f.call(`/conversations/${conversation.id}`)).value.jobs;
+  assert.equal(jobs[0].result.thinking, 'private-reasoning-marker');
+  f.advance(1);
+  await f.message(conversation.id,'Next question');
+  const next = (await f.call('/worker/poll',{ready:true},{worker:true})).value.job;
+  assert.equal(next.messages[1].content,'The answer');
+  assert.ok(!JSON.stringify(next.messages).includes('private-reasoning-marker'));
+});
+
 test('worker progress is bounded, authenticated, expires, and yields to final results', async () => {
   const f = fixture(); await f.login();
   const conversation = await f.conversation();

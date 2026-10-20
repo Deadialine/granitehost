@@ -214,11 +214,13 @@ export function createHandler({ store, env, now = () => Date.now() }) {
       }
       if (path === '/worker/heartbeat') {
         const input = await body(request);
-        const stages = ['received', 'waiting', 'generating', 'saving', 'reading_pdf', 'pdf_generating', 'governance', 'compiling', 'validating'];
+        const stages = ['received', 'waiting', 'thinking', 'generating', 'saving', 'reading_pdf', 'pdf_generating', 'governance', 'compiling', 'validating'];
         const p = input.progress;
         const progress = p && stages.includes(p.stage) ? {
           stage: p.stage,
           text: typeof p.text === 'string' ? p.text.slice(0, 30000) : '',
+          thinking: typeof p.thinking === 'string' ? p.thinking.slice(0, 30000) : '',
+          thinkingCharacters: Number.isSafeInteger(p.thinkingCharacters) && p.thinkingCharacters >= 0 ? Math.min(p.thinkingCharacters, 150000) : 0,
           characters: Number.isSafeInteger(p.characters) && p.characters >= 0 ? Math.min(p.characters, 150000) : 0,
           elapsed: Number.isFinite(p.elapsed) && p.elapsed >= 0 ? Math.min(p.elapsed, 86400) : 0,
           updatedAt: now(),
@@ -265,7 +267,7 @@ export function createHandler({ store, env, now = () => Date.now() }) {
           artifact = { url: `/api/artifacts/${job.id}`, name: 'granite-document.pdf', bytes: bytes.length, validation: 'Machine gates passed; manual accessibility review required.' };
         }
         if (job.output === 'pdf' && !input.error && !artifact) fail(400, 'A PDF result is required.');
-        const result = { ...(artifact ? { artifact } : {}), text: input.text, error: input.error?.slice(0, 400) || null, createdAt: now() };
+        const result = { ...(artifact ? { artifact } : {}), thinking: typeof input.thinking === 'string' ? input.thinking.slice(0, 60000) : '', thinkingTruncated: input.thinkingTruncated === true || (typeof input.thinking === 'string' && input.thinking.length > 60000), text: input.text, error: input.error?.slice(0, 400) || null, createdAt: now() };
         await store.setJSON(`results/${job.id}`, result, { onlyIfNew: true });
         return response({ ok: true });
       }
